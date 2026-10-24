@@ -1,0 +1,2 @@
+cyl back r=0.8 h=4 axis=z at 0 0 0
+box front 3 3 2 at 1.2 1.2 0

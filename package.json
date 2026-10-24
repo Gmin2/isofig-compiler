@@ -1,0 +1,45 @@
+{
+  "name": "@isofig/compiler",
+  "version": "0.1.0",
+  "description": "Compiles the isofig scene language into isometric SVG figures",
+  "private": false,
+  "license": "MIT",
+  "author": "Mintu Gogoi",
+  "homepage": "https://isofig.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gmin2/isofig-compiler.git"
+  },
+  "bugs": "https://github.com/Gmin2/isofig-compiler/issues",
+  "keywords": [
+    "isometric",
+    "svg",
+    "diagram",
+    "illustration",
+    "dsl",
+    "compiler",
+    "grammar",
+    "constrained-decoding"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "icons",
+    "isofig.lark",
+    "docs"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node test/api.ts && node test/arrows.ts && node test/tags.ts && node test/lint.ts && node test/motion.ts && node test/icons.ts && node test/style.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

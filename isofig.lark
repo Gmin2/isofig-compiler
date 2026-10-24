@@ -1,0 +1,118 @@
+// The scene language as a grammar. Used two ways: checked against every good
+// figure with lark, and handed to llguidance to constrain what a model can
+// write while it generates.
+//
+// Every repetition is capped. The pilot figures used at most 3 options before a
+// placement and 5 after; with r= a teacher figure used 5 before. Caps of 6 and
+// 8 leave room, but a model that starts
+// looping on accent=0 accent=1 ... is stopped before the line runs away.
+//
+// Written for llguidance, whose repetition is {m,n}. Lark spells it ~ m..n, so
+// it has to be converted before lark can check figures with it.
+//
+// Options may come in any order, which is how figures are actually written, but
+// a solid must carry exactly one placement: any options, one placement, any
+// options. That keeps it context free.
+//
+// What this cannot express: whether a name was defined on an earlier line.
+// That depends on what came before, so it is handled per line, outside the
+// grammar: REF becomes the solids defined so far, MARK those plus the arrows,
+// since a tag or accent can point at an arrow but nothing can stand on one.
+
+start: line ("\n" line){0,27} "\n"?
+
+line: box | slab | shape | word | tray | stack | grid | cyl | icon
+    | tag | link | brackets | arrow | dot | accent | hole | pattern | ring
+    | enter | float | pulse | flow | slide | bob | blink | ripple | hover | timeline
+
+// solids
+box:   "box " NAME " " NUM " " NUM " " NUM solid_rest
+slab:  "slab " NAME " " NUM " " NUM " " NUM solid_rest
+tray:  "tray " NAME " " NUM " " NUM " " NUM tray_rest
+stack: "stack " NAME " " NUM " " NUM " " NUM stack_rest
+grid:  "grid " NAME " " NUM grid_rest
+cyl:   "cyl " NAME cyl_rest
+// a solid with an outline of its own, lying flat or stood up with axis=
+shape: "shape " NAME " " SHAPE " " NUM " " NUM " " NUM shape_rest
+// letters you can stand on: block capitals and digits, one solid each, NAME.0 NAME.1 ...
+word:  "word " NAME " " TEXT word_rest
+// a drawing the figure names rather than draws; the compiler resolves the name
+icon:  "icon " NAME " " GLYPH icon_rest
+
+solid_rest: (" " (common | rounded)){0,6} " " placement (" " (common | rounded)){0,8}
+tray_rest:  (" " (common | wall)){0,6} " " placement (" " (common | wall)){0,8}
+stack_rest: (" " (common | stack_opt)){0,6} " " placement (" " (common | stack_opt)){0,8}
+grid_rest:  (" " (common | grid_opt)){0,6} " " placement (" " (common | grid_opt)){0,8}
+cyl_rest:   (" " (common | cyl_opt)){0,6} " " placement (" " (common | cyl_opt)){0,8}
+icon_rest:  (" " (common | icon_opt)){0,6} " " placement (" " (common | icon_opt)){0,8}
+shape_rest: (" " (common | shape_opt)){0,6} " " placement (" " (common | shape_opt)){0,8}
+word_rest:  (" " (common | word_opt)){0,6} " " placement (" " (common | word_opt)){0,8}
+
+placement: "at " NUM " " NUM " " NUM
+         | "on=" REF
+         | "beside=" REF
+
+common: "gap=" NUM | "float=" NUM | "hidden=dashed" | "accent" | "tint=" TINT | DIR
+// corner radius; half the width of a square gives a disc, a coin
+rounded: "r=" NUM
+wall: "wall=" NUM
+stack_opt: "n=" INT | "step=" NUM "," NUM | "accent=" INT | rounded
+grid_opt: "n=" INT "," INT "," INT | "pitch=" NUM
+cyl_opt: "r=" NUM | "h=" NUM | "axis=" AXIS
+// height in scene units
+icon_opt: "size=" NUM
+// stood up across x or y; an arrow, chevron or tri points along point= (a tri points up unless told)
+shape_opt: "axis=" AXIS | "point=" DIR | rounded
+// size is the height of the letters, deep how thick they are; standing (axis=y) unless told
+word_opt: "size=" NUM | "deep=" NUM | "axis=" AXIS
+
+// marks
+tag:      "tag " MARK " " TEXT (" " ("below" | "above"))?
+link:     "link " REF " " REF (" " ("dashed" | "corners" | "accent")){0,3}
+brackets: "brackets " REF (" accent")?
+// ends are two solids and the compiler routes between them, a solid and the side
+// the arrow leaves towards or comes in from, or two points
+arrow:    "arrow " NAME (" " arrow_word){0,2} arrow_ends (" " arrow_word){0,2}
+arrow_ends: " from=" REF " to=" REF | " from=" REF " to=" SIDE | " from=" SIDE " to=" REF
+          | " from=" point " to=" point
+point: NUM "," NUM "," NUM
+arrow_word: "dashed" | "accent"
+dot:      "dot " REF
+accent:   "accent " MARK
+hole:     "hole " HOLE (" " ("r=" NUM | "hex")){0,3}
+pattern:  "pattern " REF (" " ("n=" INT | "accent=" INT ("," INT){0,24})){1,3}
+ring:     "ring " REF (" " ("r=" NUM | "n=" INT | "accent=" INT ("," INT){0,47})){1,4}
+
+// motion: entrances play one after another in line order, the rest runs once they have landed
+enter:    "enter " REF " " HOW (" " ("from=" REF | "stagger=" NUM | "together")){0,3}
+HOW:      "drop" | "rise" | "pop" | "fade"
+float:    "float " REF
+pulse:    "pulse " REF
+flow:     "flow " ARROW
+// slide goes one step and starts over, so a row of the same thing on a belt never
+// stops; bob goes out and comes back, like a press or a layer lifting; both in scene units
+slide:    "slide " REF " by=" NUM "," NUM "," NUM
+bob:      "bob " REF " by=" NUM "," NUM "," NUM
+// a light going off and on, a grid's parts taking turns; rings going out over the top
+blink:    "blink " REF
+// under the pointer: rises (each part of a grid or word on its own), slides out to a spot, or lights up
+hover:    "hover " REF " " ("lift=" NUM | "open=" NUM "," NUM "," NUM | "glow")
+ripple:   "ripple " REF
+timeline: "timeline " ("loop" | "once") (" hold=" NUM)?
+
+NAME: /[A-Za-z][A-Za-z0-9_]{0,23}/
+REF:  /[A-Za-z][A-Za-z0-9_]{0,23}(\.[A-Za-z0-9_]{1,6})?/
+MARK: /[A-Za-z][A-Za-z0-9_]{0,23}(\.[A-Za-z0-9_]{1,6})?/
+ARROW: /[A-Za-z][A-Za-z0-9_]{0,23}/
+NUM:  /-?[0-9]{1,3}(\.[0-9]{1,3})?/
+INT:  /[0-9]{1,3}/
+TEXT: /"[A-Z0-9 +%&.\/:·–-]{1,24}"/
+// what the glyph is called, in the catalogue's own spelling
+GLYPH: /"[a-z0-9_ ]{1,28}"/
+DIR:  /[+-][xy]/
+SIDE: /[+-][xyz]/
+AXIS: /[xyz]/
+// a named surface. what each one looks like is a style's business, see src/style.ts
+SHAPE: "hex" | "tri" | "diamond" | "star" | "plus" | "arrow" | "chevron" | "ring" | "pill"
+TINT: "yellow" | "blue" | "purple" | "green" | "lime" | "pink" | "orange" | "teal" | "grey"
+HOLE: /[A-Za-z][A-Za-z0-9_]{0,23}(\.[A-Za-z0-9_]{1,6})?\.(left|right|top)/
